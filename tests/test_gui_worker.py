@@ -43,6 +43,7 @@ class WorkerTests(unittest.TestCase):
 
         self.addCleanup(restore_lang)
         i18n._language = 'zh'
+        real_qsettings(settings_path, real_qsettings.Format.IniFormat).setValue('interface_language', 'zh')
         qsettings_patch = patch.object(
             i18n,
             'QSettings',
@@ -58,7 +59,8 @@ class WorkerTests(unittest.TestCase):
     def test_no_outputs_is_error(self):
         with tempfile.TemporaryDirectory() as td:
             worker = self.make_worker(Path(td))
-            with patch('core.llama_runtime.LlamaServerRuntime'), patch('gui.set_system_keep_awake'), \
+            with patch('core.offline.resolve_translation_model', return_value=Path('models/mock.gguf')), \
+                 patch('core.llama_runtime.LlamaServerRuntime'), patch('gui.set_system_keep_awake'), \
                  patch('core.jobs.run_document_job', return_value={'result': {}}):
                 worker.run()
             self.assertEqual(worker.tasks[0].status, 'error')
@@ -79,7 +81,8 @@ class WorkerTests(unittest.TestCase):
                     result[f'{name}_pdf_path'] = str(file)
                 kwargs['progress_callback']({'type': 'progress_update', 'stage': 'Translation', 'overall_progress': 65})
                 return {'result': result}
-            with patch('core.llama_runtime.LlamaServerRuntime', return_value=runtime), \
+            with patch('core.offline.resolve_translation_model', return_value=Path('models/mock.gguf')), \
+                 patch('core.llama_runtime.LlamaServerRuntime', return_value=runtime), \
                  patch('gui.set_system_keep_awake'), patch('core.jobs.run_document_job', side_effect=translate):
                 worker.run()
             self.assertEqual([t.status for t in worker.tasks], ['error', 'finished'])
@@ -91,7 +94,8 @@ class WorkerTests(unittest.TestCase):
             emitted = []
             worker.fatal_error.connect(lambda message: emitted.append('fatal'))
             worker.batch_finished.connect(lambda: emitted.append('finished'))
-            with patch('core.llama_runtime.LlamaServerRuntime', side_effect=RuntimeError('missing model')), \
+            with patch('core.offline.resolve_translation_model', return_value=Path('models/mock.gguf')), \
+                 patch('core.llama_runtime.LlamaServerRuntime', side_effect=RuntimeError('missing model')), \
                  patch('gui.set_system_keep_awake'):
                 worker.run()
             self.assertEqual(emitted, ['fatal'])
@@ -103,7 +107,8 @@ class WorkerTests(unittest.TestCase):
             def failed(*args, **kwargs):
                 (Path(args[2]) / 'quality_issues.json').write_text('[]')
                 raise RuntimeError('需复核：占位符缺失')
-            with patch('core.llama_runtime.LlamaServerRuntime'), patch('gui.set_system_keep_awake'), \
+            with patch('core.offline.resolve_translation_model', return_value=Path('models/mock.gguf')), \
+                 patch('core.llama_runtime.LlamaServerRuntime'), patch('gui.set_system_keep_awake'), \
                  patch('core.jobs.run_document_job', side_effect=failed):
                 worker.run()
             self.assertEqual(worker.tasks[0].status, 'review')
@@ -118,7 +123,8 @@ class WorkerTests(unittest.TestCase):
             def cancel(*args, **kwargs):
                 worker.request_stop()
                 raise JobCancelled()
-            with patch('core.llama_runtime.LlamaServerRuntime'), patch('gui.set_system_keep_awake'), \
+            with patch('core.offline.resolve_translation_model', return_value=Path('models/mock.gguf')), \
+                 patch('core.llama_runtime.LlamaServerRuntime'), patch('gui.set_system_keep_awake'), \
                  patch('core.jobs.run_document_job', side_effect=cancel):
                 worker.run()
             self.assertEqual(worker.tasks[0].status, 'stopped')
@@ -414,7 +420,8 @@ class WorkerTests(unittest.TestCase):
                     res[f'{name}_pdf_path'] = str(f)
                 return {'result': res}
 
-            with patch('core.llama_runtime.LlamaServerRuntime'), patch('gui.set_system_keep_awake'), \
+            with patch('core.offline.resolve_translation_model', return_value=Path('models/mock.gguf')), \
+                 patch('core.llama_runtime.LlamaServerRuntime'), patch('gui.set_system_keep_awake'), \
                  patch('core.jobs.run_document_job', side_effect=fake_translate):
                 worker.run()
 
@@ -464,7 +471,8 @@ class WorkerTests(unittest.TestCase):
             runtime = MagicMock()
             tasks = [TaskItem('s1', scanned_pdf, 'waiting')]
             worker = BatchTranslationWorker(tasks, 'auto', 'ja', 4, 2, 8192, 0)
-            with patch('core.llama_runtime.LlamaServerRuntime', return_value=runtime), \
+            with patch('core.offline.resolve_translation_model', return_value=Path('models/mock.gguf')), \
+                 patch('core.llama_runtime.LlamaServerRuntime', return_value=runtime), \
                  patch('gui.set_system_keep_awake'):
                 worker.run()
 
@@ -583,7 +591,8 @@ class WorkerTests(unittest.TestCase):
                     result[f'{name}_pdf_path'] = str(file)
                 return {'result': result}
 
-            with patch('core.llama_runtime.LlamaServerRuntime'), patch('gui.set_system_keep_awake'), \
+            with patch('core.offline.resolve_translation_model', return_value=Path('models/mock.gguf')), \
+                 patch('core.llama_runtime.LlamaServerRuntime'), patch('gui.set_system_keep_awake'), \
                  patch('core.jobs.run_document_job', side_effect=translate):
                 worker.run()
 

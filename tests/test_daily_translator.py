@@ -420,6 +420,7 @@ class DailyTranslatorGuiTests(unittest.TestCase):
 
         self.addCleanup(restore_lang)
         i18n._language = "zh"
+        real_qsettings(settings_path, real_qsettings.Format.IniFormat).setValue("interface_language", "zh")
         qsettings_patch = patch.object(
             i18n,
             "QSettings",

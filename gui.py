@@ -1567,8 +1567,9 @@ class MainWindow(QWidget):
         self.btn_mode_daily.clicked.connect(lambda: self.switch_mode(1))
 
         mode_widget = make_inline_group(self.btn_mode_pdf, self.btn_mode_daily, spacing=0)
-        brand_group = make_inline_group(app_title, app_badge, mode_widget, spacing=12)
+        brand_group = make_inline_group(app_title, app_badge, spacing=10)
         top_bar.addWidget(brand_group)
+        top_bar.addWidget(mode_widget)
 
         self.ui_language_combo = configure_localized_combo(QComboBox())
         self.ui_language_combo.setToolTip("Language / 语言 / 言語 / 언어 / Язык")

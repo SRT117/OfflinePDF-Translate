@@ -36,7 +36,7 @@ OfflinePDF Translate是一个专注于本地离线翻译PDF文献的项目。用
 
 ### Windows一键安装
 
-1. 前往GitHub Releases下载最新版本的 `OfflinePDF-Translate-Setup.exe`。
+1. 前往 [GitHub Releases](../../releases) 或国内镜像 [GitCode Releases](https://gitcode.com/SRT117/OfflinePDF-Translate/releases) 下载最新版本的 `OfflinePDF-Translate-Setup.exe`（若发布分卷版本，请将 `.exe` 与全部 `.bin` 分卷下载到同一文件夹）。
 2. 双击安装。由于开源项目未购买商业代码签名证书，若遇到Windows SmartScreen拦截提示，点击**“更多信息” → “仍要运行”**即可继续。
 3. 启动程序，拖入PDF文件，在底部选择目标语言后点击开始即可。
 
@@ -77,7 +77,7 @@ OfflinePDF Translate是一个专注于本地离线翻译PDF文献的项目。用
 
 - **纯本地离线执行**：无账号体系、无遥测、无广告，不依赖任何云端翻译API Key。
 - **回环网络限制**：运行前会对字体、CMap、分词器、ONNX与GGUF进行就绪检查；翻译子进程中的Python网络连接被限制在回环地址，本地 `llama-server` 仅监听 `127.0.0.1`（注：此为应用层策略限制，并非操作系统级沙盒隔离）。
-- **数据存储位置**：缓存、任务队列与运行日志保存于用户数据目录（Windows上为 `%LOCALAPPDATA%\OfflinePDF Translate`），不要求安装目录可写；旧版本数据目录会继续沿用，卸载程序不会自动删除运行期间生成的缓存与日志。文档中间文件放入独立临时目录并在结束时清理。
+- **数据存储位置**：缓存、任务队列与运行日志保存于用户数据目录（Windows上为 `%LOCALAPPDATA%\OfflinePDF Translate`），不要求安装目录可写；旧版本数据目录会在覆盖升级时继续沿用，卸载程序会自动清理程序目录、用户数据目录、缓存、日志、队列、术语表、历史记录及界面语言注册表设置，不留残留。文档中间文件放入独立临时目录并在结束时清理。
 
 ---
 
