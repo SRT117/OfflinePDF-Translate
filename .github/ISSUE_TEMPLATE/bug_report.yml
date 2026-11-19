@@ -1,0 +1,39 @@
+name: Bug Report
+description: Report installation, startup, translation, or layout issues
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Before submitting, please make sure you have not attached private source PDFs or full logs containing sensitive text.
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: Installation Method
+      options:
+        - Windows Installer (OfflinePDF-Translate-Setup.exe)
+        - Portable Archive (Portable)
+        - From Source
+    validations:
+      required: true
+  - type: input
+    id: os_version
+    attributes:
+      label: OS & Hardware
+      placeholder: "e.g., Windows 11 23H2 x64, 16GB RAM, CPU-only"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description & Steps to Reproduce
+      placeholder: Briefly describe the scenario, target language, and observed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error & Log Excerpt
+      description: Logs are located at `%LOCALAPPDATA%\OfflinePDF Translate\logs` (do not include sensitive full text)
+      render: text

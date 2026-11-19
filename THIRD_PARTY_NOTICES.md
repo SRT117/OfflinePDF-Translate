@@ -1,0 +1,16 @@
+# Third-party notices and release checklist
+
+OfflinePDF Translate source code is offered under AGPL-3.0-only; see [LICENSE](LICENSE). Third-party code, models, fonts and tools retain their own licenses. This document identifies major dependencies; it is not a complete binary-distribution license inventory.
+
+- [BabelDOC 0.6.2](https://github.com/funstory-ai/BabelDOC), AGPL-3.0: PDF translation and layout. This project calls and integrates BabelDOC; it is not an official PDFMathTranslate release.
+- [PyMuPDF 2.0](https://github.com/pymupdf/PyMuPDF), AGPL-3.0 or Artifex commercial licensing. Check the actual bundled version and its accompanying notices.
+- [Qt for Python / PySide6-Essentials 6.11.0](https://doc.qt.io/qtforpython-6/licenses.html), `LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only`: Qt and its components have LGPL, GPL and other licensing terms. Preserve the applicable notices and fulfill the terms for the exact Qt modules and binaries distributed.
+- [psutil 7.2.2](https://github.com/giampaolo/psutil), BSD-3-Clause; [bitstring 4.4.0](https://github.com/scott-griffiths/bitstring) & [tibs 0.5.7](https://github.com/scott-griffiths/tibs), MIT; [onnxruntime 1.31.0](https://github.com/microsoft/onnxruntime), MIT; [huggingface-hub 2.3.0](https://github.com/huggingface/huggingface_hub) & [openai 3.37.0](https://github.com/openai/openai-python), Apache-2.0 (transitive via BabelDOC).
+- [llama.cpp](https://github.com/ggml-org/llama.cpp): MIT-licensed upstream source; bundled Windows binaries also include LLVM OpenMP (`libomp.dll`, see `runtime/llama.cpp/LICENSE-LLVM-OpenMP`). Exact binaries, commit, bundled libraries and their notices must be verified for each release.
+- [Tencent Hy-MT2-1.8B](https://huggingface.co/tencent/Hy-MT2-1.8B-GGUF): model weights are distributed separately from this source repository. Verify the exact GGUF origin, version, hash and license before redistribution.
+- [DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO): upstream code is AGPL-3.0. Verify the exact ONNX model conversion, weights provenance and model-specific terms separately.
+- BabelDOC assets include Go Noto Kurrent, Noto, Source Han, LXGW WenKai, Klee One, MaruBuri and other fonts. Confirm each exact file's origin and license and include complete required license and copyright notices when redistributing them.
+- `scripts/ChineseSimplified.isl`: Simplified Chinese Inno Setup 6 message overrides (`compiler:Default.isl` companion). Confirm provenance and preserve applicable Inno Setup license terms if derived from upstream translations.
+- Python, Microsoft Visual C++ runtime DLLs (`msvcp140*.dll`, `vcruntime140*.dll`, `concrt140.dll`), and other packages have their own licenses. See `requirements.lock`, each installed package's `.dist-info` metadata and license files, and the vendor's distribution terms.
+
+**Before publishing an installer:** produce a complete inventory for the actual bundled files, include all required license texts and source/offer information, verify model/font redistribution rights and exact provenance, and review Qt, PyMuPDF, Microsoft runtime and AGPL obligations. The present local installer is a development artifact and has not completed this release audit.
