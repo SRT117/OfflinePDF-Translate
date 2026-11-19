@@ -15,3 +15,34 @@ When modifying installation, packaging, user data storage, or registry persisten
    `[InstallDelete]` cleans only managed program directories inside `{app}`; it must **not** delete `%LOCALAPPDATA%\OfflinePDF Translate` or `HKCU\Software\OfflinePDF`, so in-place upgrades keep user settings, queues, glossaries, and history.
 4. **Update regression coverage:**
    Any newly added persistent folder, registry key, shortcut, or temp prefix must be added to `scripts/installer.iss` and verified by `InstallerTests` in `tests/test_regressions.py`.
+
+## Output Naming, Internationalization & CI Policy
+
+1. **Output filenames:**
+   `core/delivery.py` must keep universal English output suffixes (`[name].bilingual.pdf` and `[name].translated.pdf`), synchronized across `tests/test_regressions.py` and all five README files (`README.md`, `docs/README.zh-CN.md`, `docs/README.ja.md`, `docs/README.ko.md`, `docs/README.ru.md`).
+2. **UI & installer language fallback:**
+   Both the desktop UI (`core/i18n.py`) and Windows installer (`scripts/installer.iss`) auto-detect OS language among `zh`, `en`, `ja`, `ko`, `ru` and must default to English (`en`) when the OS locale is unrecognized.
+3. **Cross-platform CI compatibility:**
+   All tests in `tests/` must pass on clean source checkouts (without `models/`, `assets/fonts/`, or a Chinese OS locale) on Windows, Ubuntu, and macOS (`QT_QPA_PLATFORM=offscreen`). Guard or mock missing local models/fonts cleanly, preserve zero text clipping across all five UI languages, and keep `requirements.txt` aligned with direct imports in `core/` and `tests/`.
+
+## Privacy & Repository Hygiene
+
+1. **Never commit sensitive or large local artifacts:**
+   Do not commit personal emails, internal hostnames/IPs, API keys, GGUF/ONNX weights, bundled runtimes/fonts, test PDFs, logs, or `dist/` binaries.
+2. **No plaintext contact emails in public history:**
+   Use GitHub's noreply commit email (`<id>+<username>@users.noreply.github.com`) for commits. Direct vulnerability reports to GitHub Private Vulnerability Reporting in `SECURITY.md` without exposing plaintext emails.
+
+## Dual-Remote Release & Distribution Workflow
+
+1. **Remotes & network routing:**
+   - Primary open-source repository: **GitHub** (`origin`, `SRT117/OfflinePDF-Translate`).
+   - Domestic mirror & binary download entry: **GitCode** (`gitcode`, `SRT117/OfflinePDF-Translate`). Push/upload to GitCode over a direct connection bypassing local proxy/VPN tools so large transfers do not consume proxy subscription quota.
+2. **Pre-release checks:**
+   - Run `.\runtime\python\python.exe -m unittest discover -s tests`, `.\runtime\python\python.exe gui.py --check-runtime`, and `.\runtime\python\python.exe scripts/prepare_offline_assets.py`.
+   - Push `main` and the annotated tag (`vX.Y.Z`) to both `origin` and `gitcode`, and confirm `.github/workflows/tests.yml` passes across `windows-latest`, `ubuntu-latest`, and `macos-latest`.
+3. **Packaging & checksums:**
+   - Build the Windows installer on Windows x64 (`.\scripts\build_installer.ps1 -Version "<X.Y.Z>"`) and generate `OfflinePDF-Translate-Setup.exe.sha256`.
+   - Update `THIRD_PARTY_NOTICES.md` whenever Python dependencies, `llama.cpp`, fonts, or models change.
+4. **Release publishing & cleanup:**
+   - Upload `OfflinePDF-Translate-Setup.exe` and `.sha256` to both GitCode Releases and GitHub Releases (if the installer exceeds 2 GiB, use `.\scripts\build_installer.ps1 -Split`; if local proxy instability interrupts large uploads to GitHub, relay the already-uploaded GitCode binary via an overseas host after verifying its exact SHA-256).
+   - Remove obsolete test tags/releases, temporary files, and superseded local builds in `dist/` so storage stays clean. Keep the GitCode Releases mirror link documented in `docs/README.zh-CN.md`.
