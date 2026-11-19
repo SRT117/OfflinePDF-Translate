@@ -39,12 +39,8 @@ class TestI18nSystemDetection(unittest.TestCase):
         ):
             self.assertEqual(i18n.saved_language(), "en")
 
-    def test_saved_language_migrates_legacy_qsettings_before_system_fallback(self):
-        stores = {
-            ("OfflinePDF", "Translate"): {},
-            ("PDF2zh", "Local"): {"interface_language": "ja"},
-            ("LitMTrans", "Local"): {"interface_language": "ko"},
-        }
+    def test_saved_language_roundtrip_and_system_fallback(self):
+        stores = {("OfflinePDF", "Translate"): {}}
 
         class FakeSettings:
             def __init__(self, org, app):
@@ -62,20 +58,11 @@ class TestI18nSystemDetection(unittest.TestCase):
         with patch.object(i18n, "QSettings", side_effect=FakeSettings), patch.object(
             i18n.QLocale, "system", return_value=mock_locale
         ):
-            # 1. Reads legacy PDF2zh/Local instead of overwriting with system language
-            self.assertEqual(i18n.saved_language(), "ja")
-            # 2. set_language promotes choice into new OfflinePDF/Translate settings
-            i18n.set_language(i18n.saved_language())
+            self.assertEqual(i18n.saved_language(), "en")
+            i18n.set_language("ja")
             self.assertEqual(stores[("OfflinePDF", "Translate")]["interface_language"], "ja")
-            # 3. New setting takes precedence over legacy once present
-            stores[("OfflinePDF", "Translate")]["interface_language"] = "ru"
-            self.assertEqual(i18n.saved_language(), "ru")
-            # 4. Falls back to LitMTrans/Local if only that legacy setting exists
-            stores[("OfflinePDF", "Translate")].clear()
-            stores[("PDF2zh", "Local")].clear()
-            self.assertEqual(i18n.saved_language(), "ko")
-            # 5. Falls back to system language when all settings are empty
-            stores[("LitMTrans", "Local")].clear()
+            self.assertEqual(i18n.saved_language(), "ja")
+            stores[("OfflinePDF", "Translate")]["interface_language"] = "invalid"
             self.assertEqual(i18n.saved_language(), "en")
 
 

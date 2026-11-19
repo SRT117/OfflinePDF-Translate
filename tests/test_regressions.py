@@ -770,5 +770,45 @@ class EngineTests(unittest.IsolatedAsyncioTestCase):
                 await self.execute(Path(td), [{'type': 'error', 'error': 'The document contains no paragraphs.'}])
 
 
+class InstallerTests(unittest.TestCase):
+    def _section_text(self, iss_text: str, section: str) -> str:
+        marker = f'[{section}]'
+        start = iss_text.index(marker) + len(marker)
+        rest = iss_text[start:]
+        next_idx = len(rest)
+        for line_start in range(len(rest)):
+            if (line_start == 0 or rest[line_start - 1] == '\n') and rest[line_start:].startswith('['):
+                next_idx = line_start
+                break
+        return rest[:next_idx]
+
+    def test_uninstaller_cleans_user_data_registry_and_temp_without_prompt(self):
+        iss_path = Path(__file__).resolve().parents[1] / 'scripts' / 'installer.iss'
+        iss_text = iss_path.read_text(encoding='utf-8')
+
+        uninstall_delete = self._section_text(iss_text, 'UninstallDelete')
+        for expected in (
+            r'{app}\__pycache__',
+            r'{app}\var',
+            r'{app}\logs',
+            r'{app}\tmp',
+            r'Type: dirifempty; Name: "{app}"',
+            r'{localappdata}\OfflinePDF Translate',
+        ):
+            self.assertIn(expected, uninstall_delete)
+
+        install_delete = self._section_text(iss_text, 'InstallDelete')
+        self.assertNotIn(r'{localappdata}\OfflinePDF Translate', install_delete)
+
+        registry = self._section_text(iss_text, 'Registry')
+        self.assertIn(r'Subkey: "Software\OfflinePDF"; Flags: dontcreatekey uninsdeletekey', registry)
+
+        code = self._section_text(iss_text, 'Code')
+        self.assertIn('usPostUninstall', code)
+        self.assertIn('CleanResidualAppState', code)
+        self.assertIn("'offlinepdf_stage_'", code)
+        self.assertIn("'offlinepdf_cli_'", code)
+
+
 if __name__ == '__main__':
     unittest.main()

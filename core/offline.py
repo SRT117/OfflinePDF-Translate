@@ -16,37 +16,17 @@ _OFFLINE_VERIFIED = False
 
 def user_data_dir():
     """Writable application data, independent of the installation directory."""
-    override = (
-        os.environ.get('OFFLINEPDF_DATA_DIR')
-        or os.environ.get('PDF2ZH_DATA_DIR')
-        or os.environ.get('LITMTRANS_DATA_DIR')
-    )
+    override = os.environ.get('OFFLINEPDF_DATA_DIR')
     if override:
         base = Path(override)
     else:
         if sys.platform == 'win32':
             parent = Path(os.environ.get('LOCALAPPDATA') or (Path.home() / 'AppData' / 'Local'))
         elif sys.platform == 'darwin':
-            legacy_unix = Path.home() / '.local' / 'share'
-            mac_parent = Path.home() / 'Library' / 'Application Support'
-            if (
-                (legacy_unix / 'OfflinePDF Translate').is_dir()
-                or (legacy_unix / 'PDF2zh Local').is_dir()
-                or (legacy_unix / 'LitMTrans Local').is_dir()
-            ):
-                parent = legacy_unix
-            else:
-                parent = mac_parent
+            parent = Path.home() / 'Library' / 'Application Support'
         else:
             parent = Path(os.environ.get('XDG_DATA_HOME') or (Path.home() / '.local' / 'share'))
         base = parent / 'OfflinePDF Translate'
-        # Keep existing installations' queues and caches accessible without moving them.
-        if not base.exists():
-            for legacy_name in ('PDF2zh Local', 'LitMTrans Local'):
-                legacy = parent / legacy_name
-                if legacy.is_dir():
-                    base = legacy
-                    break
     base.mkdir(parents=True, exist_ok=True)
     return base
 

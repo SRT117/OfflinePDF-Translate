@@ -14,12 +14,8 @@ from test_regressions import make_pdf
 
 
 def _isolated_data_env(data_dir: str) -> dict[str, str]:
-    """Override every supported data-dir variable so CI env vars never leak into tests."""
-    return {
-        'OFFLINEPDF_DATA_DIR': data_dir,
-        'PDF2ZH_DATA_DIR': data_dir,
-        'LITMTRANS_DATA_DIR': data_dir,
-    }
+    """Override the data-dir variable so CI env vars never leak into tests."""
+    return {'OFFLINEPDF_DATA_DIR': data_dir}
 
 
 class WorkerTests(unittest.TestCase):

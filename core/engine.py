@@ -18,6 +18,9 @@ import pymupdf
 import babeldoc.format.pdf.high_level
 from babeldoc.main import TranslationConfig, WatermarkOutputMode
 
+from .typesetting_patch import install_typesetting_patch
+install_typesetting_patch()
+
 # 契合本地大模型翻译耗时特征校准各阶段权重：
 # 1. 版面解析等翻译前阶段（YOLO/IR/切分）仅耗时数秒，总权重定为 10%；
 # 2. 本地大模型段落翻译是核心瓶颈耗时环节，总权重定为 85%；

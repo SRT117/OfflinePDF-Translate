@@ -9,7 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="#install--use">Install & Use</a>
+  <a href="#screenshots">Screenshots</a>
+  · <a href="#install--use">Install & Use</a>
   · <a href="#data--privacy">Data & Privacy</a>
   · <a href="#system-compatibility">System Compatibility</a>
   · <a href="#faq">FAQ</a>
@@ -31,6 +32,31 @@
 OfflinePDF Translate is a project focused on local offline PDF literature translation. After downloading the installer, users can install and launch it directly on an offline computer with no internet connection required, enabling free, unlimited PDF literature and daily translation. The installer can also be saved on a USB flash drive and plugged into any offline computer for immediate installation and use. Powered by Tencent Hunyuan MT2-1.8B, it supports mutual translation across 38 languages and dialects.
 
 The project uses BabelDOC and DocLayout-YOLO for PDF parsing, layout recognition, and bilingual typesetting (text-extractable PDFs only; scanned image PDFs are not supported), and runs local translation inference via llama.cpp with Tencent Hunyuan (Hy-MT2-1.8B). It bundles a standalone Python runtime, inference engine, quantized model, and font/layout assets, supporting batch queues, bilingual and translated-only PDF outputs, document-level process isolation, and automatic hardware scheduling (runs reliably even on CPU-only machines).
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/pdf-workbench.jpg" alt="PDF Workbench & Live Translation Stream" width="100%">
+      <br><sub><b>PDF Workbench &amp; Live Stream</b> — Batch queue with real-time paragraph inspection</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/daily-translate.jpg" alt="Daily Translation Workbench" width="100%">
+      <br><sub><b>Daily Translation</b> — Instant text translation, tone presets &amp; glossary</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/bilingual-paper.jpg" alt="Bilingual Side-by-Side Paper Layout" width="100%">
+      <br><sub><b>Bilingual PDF Output</b> — Side-by-side layout preserving titles, affiliations &amp; columns</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/bilingual-tables-formulas.jpg" alt="Tables, Figures and Formulas Preservation" width="100%">
+      <br><sub><b>Tables, Figures &amp; Formulas</b> — High-fidelity preservation of academic typesetting</sub>
+    </td>
+  </tr>
+</table>
 
 ## Install & Use
 
@@ -76,7 +102,7 @@ Supports `-o/--output`, `-p/--pages` (e.g. `1-3` or `1,3,5`), `--threads`, `--pa
 
 - **Fully local offline execution**: No accounts, no telemetry, no ads, and no cloud translation API keys required.
 - **Loopback network restriction**: Startup checks verify fonts, CMap, tokenizer, ONNX, and GGUF readiness. Python network connections in translation subprocesses are restricted to loopback addresses, and local `llama-server` listens only on `127.0.0.1` (note: this is an application-level policy restriction, not OS-level sandbox isolation).
-- **Data storage location**: Caches, task queues, and runtime logs are stored in the user data directory (`%LOCALAPPDATA%\OfflinePDF Translate` on Windows), so the installation directory does not need to be writable. Legacy data directories continue to be used, and uninstalling does not automatically delete caches or logs generated during runs. Intermediate document files are placed in isolated temporary directories and cleaned up upon completion.
+- **Data storage location**: Caches, task queues, and runtime logs are stored in the user data directory (`%LOCALAPPDATA%\OfflinePDF Translate` on Windows), so the installation directory does not need to be writable. In-place upgrades preserve user data; uninstalling automatically removes the application, user data directory, caches, logs, queues, glossaries, history, and saved interface language settings. Intermediate document files are placed in isolated temporary directories and cleaned up upon completion.
 
 ---
 

@@ -92,28 +92,33 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\runtime\python\pythonw.exe"; 
 [Run]
 Filename: "{app}\runtime\python\pythonw.exe"; Parameters: "-B ""{app}\gui.py"""; WorkingDir: "{app}"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent
 
+[Registry]
+; Remove Qt QSettings keys (core/i18n.py) automatically on uninstall without creating them on install.
+; Upgrades do not trigger uninstall cleanup, so user language preference is preserved across upgrades.
+Root: HKCU; Subkey: "Software\OfflinePDF"; Flags: dontcreatekey uninsdeletekey
+
 [InstallDelete]
 ; Clean managed program directories before extracting the new version so removed/renamed files,
 ; old runtime DLLs/packages, or superseded GGUF models never linger across upgrades.
-; User data lives outside {app} (%LOCALAPPDATA%\OfflinePDF Translate) and is preserved.
+; User data lives outside {app} (%LOCALAPPDATA%\OfflinePDF Translate) and is preserved on upgrade.
 Type: filesandordirs; Name: "{app}\core"
 Type: filesandordirs; Name: "{app}\models"
 Type: filesandordirs; Name: "{app}\assets"
 Type: filesandordirs; Name: "{app}\runtime"
 Type: filesandordirs; Name: "{app}\__pycache__"
-Type: files; Name: "{app}\启动.bat"
-; Remove legacy shortcuts from previous product names on upgrade.
-Type: files; Name: "{autoprograms}\PDF2zh Local.lnk"
-Type: files; Name: "{autodesktop}\PDF2zh Local.lnk"
-Type: files; Name: "{autoprograms}\LitMTrans Local.lnk"
-Type: files; Name: "{autodesktop}\LitMTrans Local.lnk"
 
 [UninstallDelete]
+; Uninstalling must restore the machine cleanly without prompting (no user data/settings retained).
 Type: filesandordirs; Name: "{app}\__pycache__"
 Type: filesandordirs; Name: "{app}\core"
 Type: filesandordirs; Name: "{app}\runtime"
 Type: filesandordirs; Name: "{app}\assets"
 Type: filesandordirs; Name: "{app}\models"
+Type: filesandordirs; Name: "{app}\var"
+Type: filesandordirs; Name: "{app}\logs"
+Type: filesandordirs; Name: "{app}\tmp"
+Type: dirifempty; Name: "{app}"
+Type: filesandordirs; Name: "{localappdata}\OfflinePDF Translate"
 
 [Code]
 procedure StopRunningAppProcesses();
@@ -138,6 +143,37 @@ begin
   Exec(PowerShellExe, Cmd, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
+procedure CleanTempPrefix(const TempDir, Prefix: String);
+var
+  FindRec: TFindRec;
+begin
+  if (TempDir = '') or (not DirExists(TempDir)) then
+    Exit;
+  if FindFirst(AddBackslash(TempDir) + Prefix + '*', FindRec) then
+  begin
+    try
+      repeat
+        if (FindRec.Name <> '.') and (FindRec.Name <> '..') and
+           ((FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0) then
+          DelTree(AddBackslash(TempDir) + FindRec.Name, True, True, True);
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+end;
+
+procedure CleanResidualAppState();
+var
+  TempDir: String;
+begin
+  TempDir := GetEnv('TEMP');
+  if TempDir = '' then
+    TempDir := GetEnv('TMP');
+  CleanTempPrefix(TempDir, 'offlinepdf_stage_');
+  CleanTempPrefix(TempDir, 'offlinepdf_cli_');
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   StopRunningAppProcesses();
@@ -147,5 +183,7 @@ end;
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then
-    StopRunningAppProcesses();
+    StopRunningAppProcesses()
+  else if CurUninstallStep = usPostUninstall then
+    CleanResidualAppState();
 end;

@@ -297,7 +297,6 @@ def detect_system_language():
 
 _SETTINGS_ORG = 'OfflinePDF'
 _SETTINGS_APP = 'Translate'
-_LEGACY_SETTINGS = (('PDF2zh', 'Local'), ('LitMTrans', 'Local'))
 
 
 def set_language(language):
@@ -309,10 +308,9 @@ def set_language(language):
 
 def saved_language():
     supported = {code for _, code in LANGUAGES}
-    for org, app in ((_SETTINGS_ORG, _SETTINGS_APP), *_LEGACY_SETTINGS):
-        value = QSettings(org, app).value('interface_language', None)
-        if value in supported:
-            return value
+    value = QSettings(_SETTINGS_ORG, _SETTINGS_APP).value('interface_language', None)
+    if value in supported:
+        return value
     return detect_system_language()
 
 def tr(text):

@@ -9,7 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="#安装与使用">安装与使用</a>
+  <a href="#界面与效果演示">界面与效果演示</a>
+  · <a href="#安装与使用">安装与使用</a>
   · <a href="#数据与隐私">数据与隐私</a>
   · <a href="#系统兼容性">系统兼容性</a>
   · <a href="#常见问题">常见问题</a>
@@ -31,6 +32,31 @@
 OfflinePDF Translate是一个专注于本地离线翻译PDF文献的项目。用户下载安装包后可直接在离线计算机上安装并启动运行，无需任何联网操作，即可免费、无限次地完成PDF文献及日常翻译工作；将安装包保存到U盘中，也可随时插入离线计算机立刻安装运行。项目基于腾讯混元MT2-1.8B大模型，支持38种语言及方言互译。
 
 项目基于BabelDOC与DocLayout-YOLO进行PDF解析、版面识别和双语排版（仅支持含可提取文本的PDF，不支持扫描类型的PDF），并通过llama.cpp与腾讯混元大模型（Hy-MT2-1.8B）完成本地推理翻译；软件内置独立Python运行时、推理引擎、量化模型与字体/版面资产，支持批量队列、双语对照与纯译文PDF输出、文档级进程隔离及自动硬件调度（纯CPU亦可稳定运行）。
+
+## 界面与效果演示
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="screenshots/pdf-workbench.jpg" alt="PDF 文献翻译工作台与实时翻译流" width="100%">
+      <br><sub><b>PDF 文献翻译与实时流</b> — 批量队列与逐段原文/译文即时核查</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="screenshots/daily-translate.jpg" alt="日常翻译工作台" width="100%">
+      <br><sub><b>日常翻译工作台</b> — 即时文本互译、风格预设与术语表干预</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="screenshots/bilingual-paper.jpg" alt="双语对照论文排版效果" width="100%">
+      <br><sub><b>双语对照 PDF 输出</b> — 完整保留标题、作者机构与双栏学术版式</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="screenshots/bilingual-tables-formulas.jpg" alt="表格、图表与公式保留效果" width="100%">
+      <br><sub><b>表格、插图与公式保护</b> — 高保真还原学术图表与数学公式排版</sub>
+    </td>
+  </tr>
+</table>
 
 ## 安装与使用
 
@@ -77,7 +103,7 @@ OfflinePDF Translate是一个专注于本地离线翻译PDF文献的项目。用
 
 - **纯本地离线执行**：无账号体系、无遥测、无广告，不依赖任何云端翻译API Key。
 - **回环网络限制**：运行前会对字体、CMap、分词器、ONNX与GGUF进行就绪检查；翻译子进程中的Python网络连接被限制在回环地址，本地 `llama-server` 仅监听 `127.0.0.1`（注：此为应用层策略限制，并非操作系统级沙盒隔离）。
-- **数据存储位置**：缓存、任务队列与运行日志保存于用户数据目录（Windows上为 `%LOCALAPPDATA%\OfflinePDF Translate`），不要求安装目录可写；旧版本数据目录会在覆盖升级时继续沿用，卸载程序会自动清理程序目录、用户数据目录、缓存、日志、队列、术语表、历史记录及界面语言注册表设置，不留残留。文档中间文件放入独立临时目录并在结束时清理。
+- **数据存储位置**：缓存、任务队列与运行日志保存于用户数据目录（Windows上为 `%LOCALAPPDATA%\OfflinePDF Translate`），不要求安装目录可写；覆盖升级时会保留现有用户数据，卸载程序会自动清理程序目录、用户数据目录、缓存、日志、队列、术语表、历史记录及界面语言注册表设置，不留残留。文档中间文件放入独立临时目录并在结束时清理。
 
 ---
 

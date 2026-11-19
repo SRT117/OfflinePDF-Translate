@@ -13,5 +13,6 @@
 *.iss text eol=crlf
 *.isl text eol=crlf
 *.png binary
+*.jpg binary
 *.ico binary
 *.db binary
