@@ -25,9 +25,12 @@ from babeldoc.format.pdf.document_il.midend.typesetting import Typesetting, Type
 from core.typesetting_patch import find_hyphenation_positions, install_typesetting_patch
 
 
-def _load_font(filename: str) -> pymupdf.Font:
+def _load_font(filename: str, fallback: str) -> pymupdf.Font:
     font_path = ROOT / "assets" / "fonts" / filename
-    font = pymupdf.Font(fontfile=str(font_path))
+    if font_path.is_file():
+        font = pymupdf.Font(fontfile=str(font_path))
+    else:
+        font = pymupdf.Font(fallback)
     font.font_id = filename
     return font
 
@@ -79,8 +82,8 @@ class TestTypesettingPatch(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         install_typesetting_patch()
-        cls.font_latin = _load_font("NotoSerif-Regular.ttf")
-        cls.font_cjk = _load_font("SourceHanSerifCN-Regular.ttf")
+        cls.font_latin = _load_font("NotoSerif-Regular.ttf", "helv")
+        cls.font_cjk = _load_font("SourceHanSerifCN-Regular.ttf", "cjk")
 
     def test_word_never_splits_after_narrow_initial_letter(self):
         """复现 `с / егментов` 与 `в / ыбран` 的窄首字母后强行拆词缺陷并验证彻底消除。"""
