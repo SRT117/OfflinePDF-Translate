@@ -259,7 +259,7 @@ class TestTypesettingPatch(unittest.TestCase):
         self.assertLessEqual(formula_units[0].box.x2, box.x2 + 0.6)
         self.assertAlmostEqual(_line_right(lines[0]), box.x2, delta=0.6)
 
-    def test_cjk_mixed_paragraph_justifies_gently_without_breaking_latin(self):
+    def test_cjk_mixed_paragraph_preserves_original_natural_layout(self):
         ts = _DummyTypesetting("ZH", self.font_cjk)
         box = Box(x=30.0, y=0.0, x2=265.0, y2=400.0)
         para = PdfParagraph(box=box, first_line_indent=False, layout_label="plain text")
@@ -272,8 +272,15 @@ class TestTypesettingPatch(unittest.TestCase):
         self.assertTrue(fit)
         lines = _group_lines(laid_out)
         self.assertGreaterEqual(len(lines), 3)
-        for line_units in lines[:-1]:
-            self.assertAlmostEqual(_line_right(line_units), box.x2, delta=0.6)
+        # 中文保持原始自然排版，不拉伸汉字间距
+        for line_units in lines:
+            cjk_pairs = [
+                (line_units[i], line_units[i + 1])
+                for i in range(len(line_units) - 1)
+                if line_units[i].is_cjk_char and line_units[i + 1].is_cjk_char
+            ]
+            for a, b in cjk_pairs:
+                self.assertAlmostEqual(b.box.x - a.box.x2, 0.0, delta=1e-4)
 
     def test_engine_imports_and_installs_patch_automatically(self):
         import core.engine  # noqa: F401

@@ -457,6 +457,84 @@ class TranslationTests(unittest.TestCase):
         self.assertIn("Experimental", padded)
         self.assertIn("damage", padded)
 
+    def test_multilingual_variant_placeholders_repaired_and_leaked_u_blocked(self):
+        # 1. 西里尔 [в2]、[В4]、[B4] 与全角/阿拉伯数字占位符自动修复为标准 [v数字]
+        src = "Compare P [v1], u [v2] and R/R [v4] in Fig. 8."
+        cand = "Сравните P [в1], u [в2] и R/R [B4] на рис. 8."
+        sanitized, stripped = sanitize_placeholders(src, cand)
+        self.assertEqual(sanitized, "Сравните P [v1], u [v2] и R/R [v4] на рис. 8.")
+        self.assertEqual(stripped, [])
+
+        fw_src = "Value [v1] and [v2]."
+        fw_cand = "值 ［ｖ１］ 与 [v٢]。"
+        fw_sanitized, _ = sanitize_placeholders(fw_src, fw_cand)
+        self.assertEqual(fw_sanitized, "值 [v1] 与 [v2]。")
+
+        # 1.5 日语常见变异：[v3> 和 [vn4] 修复，及未修复时拦截
+        jp_src = "kinetic energy [v3] and x [v4]."
+        jp_cand = "運動エネルギー項 [v3> と座標 [vn4]。"
+        jp_sanitized, _ = sanitize_placeholders(jp_src, jp_cand)
+        self.assertEqual(jp_sanitized, "運動エネルギー項 [v3] と座標 [v4]。")
+        self.assertFalse(PlaceholderValidator.validate(jp_src, jp_cand).is_valid)
+
+        # 1.6 模型泄露出 Markdown ** 加粗星号时自动剥离
+        rt_md = ReplyRuntime("координаты **<** L")
+        tr_md = HunyuanLocalTranslator(rt_md, lang_in="en", lang_out="ru", max_retries=0)
+        out_md = tr_md.do_translate("coordinates < L")
+        self.assertNotIn("**", out_md)
+
+        # 2. 未还原的 [u2] / [в2] 若未被修复，PlaceholderValidator 必须拦截
+        self.assertFalse(PlaceholderValidator.validate("See https://doi.org/10.1/2", "См. [u2]").is_valid)
+        self.assertFalse(PlaceholderValidator.validate("See [v2]", "См. [в2]").is_valid)
+
+        # 3. 端到端翻译中，西里尔 [у1] 还原 URL，幻觉 [u2] 被剥离
+        rt = ReplyRuntime("Опубликовано на [у1] [u2].")
+        tr = HunyuanLocalTranslator(rt, lang_in="en", lang_out="ru", max_retries=0)
+        out = tr.do_translate("Published at https://doi.org/10.1063/5.0316977.")
+        self.assertIn("https://doi.org/10.1063/5.0316977", out)
+        self.assertNotIn("[u2]", out)
+        self.assertNotIn("[у1]", out)
+
+    def test_year_hallucination_and_foreign_script_glitch_retried(self):
+        class SeqRuntime:
+            def __init__(self, replies):
+                self.replies = list(replies)
+                self.prompts = []
+            def chat_completion(self, **kwargs):
+                self.prompts.append(kwargs["prompt"])
+                return {"choices": [{"message": {"content": self.replies.pop(0)}, "finish_reason": "stop"}]}
+
+        # 1. 页眉年份 (2026) 被幻觉改写为 (2024) 时自动触发重试，不缓存错误年份
+        rt_year = SeqRuntime(["Phys. Fluids 38, 033307 (2024)", "Phys. Fluids 38, 033307 (2026)"])
+        tr_year = HunyuanLocalTranslator(rt_year, lang_in="en", lang_out="ru", max_retries=1)
+        out_year = tr_year.do_translate("Phys. Fluids 38, 033307 (2026)")
+        self.assertIn("2026", out_year)
+        self.assertNotIn("2024", out_year)
+        self.assertEqual(tr_year.stats["retry_calls"], 1)
+
+        # 2. 俄语译文中混入阿拉伯文 token glitch (`ىلع`) 时触发重试
+        rt_glitch = SeqRuntime([
+            "Давление последовательного потока ىلع общее давление.",
+            "Давление последовательного потока на общее давление.",
+        ])
+        tr_glitch = HunyuanLocalTranslator(rt_glitch, lang_in="en", lang_out="ru", max_retries=1)
+        out_glitch = tr_glitch.do_translate("The pressure of the after flow on the total pressure.")
+        self.assertNotIn("ىلع", out_glitch)
+        self.assertEqual(tr_glitch.stats["retry_calls"], 1)
+
+    def test_reference_block_skips_background_injection(self):
+        rt = ReplyRuntime("[v1] Сюй Ю. Г., Реакция конструкции (2010).\n[v2] Лю Л. Б., Численное моделирование (2021).\n[v3] Ван Л. К., Нагрузки (2017).")
+        tr = HunyuanLocalTranslator(rt, lang_in="en", lang_out="ru")
+        tr.set_background("Title: After flow study\n\nAbstract: Long abstract that must not leak into references.")
+        ref_block = (
+            "underwater explosion considering the damping effect,” Ocean Eng. 239, 109831 (2021). "
+            "[v1]Y. G. Xu, Response of Structure to Underwater Explosion (Dalian University of Technology, 2010). "
+            "[v2]L. B. Liu, “Numerical simulation on dynamic responses,” Chin. J. High Pressure Phys. 35, 065102 (2021). "
+            "[v3]L. K. Wang, Load Characteristics (Harbin Engineering University, 2017)."
+        )
+        tr.do_translate(ref_block)
+        self.assertNotIn("Long abstract that must not leak", rt.prompts[0])
+
 
 class DeliveryTests(unittest.TestCase):
     def test_empty_delivery_never_published(self):

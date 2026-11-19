@@ -62,16 +62,31 @@ def protect_inline_urls(text: str) -> tuple[str, list[tuple[str, str]]]:
     return re.sub(r"  +", " ", protected), mapping
 
 
-def restore_inline_urls(text: str, mapping: list[tuple[str, str]]) -> str:
-    """恢复被临时保护的 URL/DOI/邮箱，兼容模型输出的宽容括号与空格变体。"""
-    if not text or not mapping:
+def _normalize_placeholder_digits(raw: str) -> str:
+    """将全角数字及阿拉伯-印地/波斯数字统一转换为 ASCII 数字，便于占位符修复。"""
+    trans = str.maketrans("０１２３４５６７８９٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "012345678901234567890123456789")
+    return raw.translate(trans)
+
+
+def restore_inline_urls(text: str, mapping: list[tuple[str, str]], source_text: str = "") -> str:
+    """恢复被临时保护的 URL/DOI/邮箱，兼容西里尔 у、全角字符与空格变体，并清理幻觉 [u数字]。"""
+    if not text:
         return text
-    res = text
-    for token, original in mapping:
+    res = _normalize_placeholder_digits(text)
+    for token, original in mapping or []:
         idx = token[2:-1]
-        pat = re.compile(rf"[\[\【\(（]\s*u\s*{re.escape(idx)}\s*[\]\】\)）]", re.IGNORECASE)
+        pat = re.compile(rf"[\[\【\(（\{{「『]\s*[uуｕ]\s*{re.escape(idx)}\s*[\]\】\)）\}}」』]", re.IGNORECASE)
         res = pat.sub(lambda _m, orig=original: orig, res)
-    return res
+
+    # 清理大模型幻觉多生成的、且原文中不存在的 [u数字]/[у数字] 占位符
+    def _strip_hallucinated_u(m: re.Match) -> str:
+        raw_tok = m.group(0)
+        if source_text and raw_tok in source_text:
+            return raw_tok
+        return ""
+
+    res = re.sub(r"[\[\【\(（]\s*[uуｕ]\s*\d+\s*[\]\】\)）]", _strip_hallucinated_u, res, flags=re.IGNORECASE)
+    return re.sub(r"  +", " ", res).strip()
 
 
 _NON_EN_LATIN_DIACRITIC_RE = re.compile(r"[\u00c0-\u024f\u1e00-\u1eff]")
@@ -196,13 +211,13 @@ def pad_structural_tokens(text: str) -> str:
     for k, v in charmap.items():
         res = res.replace(k, v)
 
-    # 0.5 参考文献连续条目识别：若长段落为以 [v1] 起始且包含出版元数据的参考文献列表，
+    # 0.5 参考文献连续条目识别：若长段落包含递增的 [v1]...[v2]...[v3]... 且含出版元数据，
     # BabelDOC 底层分词容易将换行压缩为空格，在此主动恢复每条文献的独立换行结构。
-    # 严格确保段落为真实参考文献列表（必须以 [v1] 起始并包含年份与出版元数据），严禁误伤包含多个上标引用的普通正文段落
-    if len(res) > 150 and re.match(r"^\s*\[v1\]", res):
+    # 严格确保段落为真实参考文献列表（必须包含年份与出版元数据且序号连续递增），严禁误伤普通正文段落
+    if len(res) > 150 and "[v1]" in res:
         tokens = re.findall(r"\[v(\d+)\]", res)
         if tokens and tokens[0] == "1" and len(tokens) >= 3:
-            has_year = bool(re.search(r"\b(19\d\d|20\d\d)\b", res))
+            has_year = bool(re.search(r"(?<!\d)(?:19\d\d|20\d\d)(?!\d)", res))
             has_pub_meta = bool(
                 re.search(
                     r"(?:press|report|journal|vol\b|no\b|pp\b|university|publisher|proceedings|trans\b|struct\b|phys\b|chem\b|eng\b|doi\b|et al\b)",
@@ -471,9 +486,9 @@ def sanitize_placeholders(source_text: str, candidate_text: str) -> tuple[str, l
     src_tokens = extract_placeholders(source_text)
     src_counter = Counter(src_tokens)
 
-    # 0. 规范化畸变括号及带前后缀杂质的占位符（例如大模型生成的 【v1】、[v1}、{v1]、(v1)、[R/v3]、[v3.]、[[v1]] 等）
+    # 0. 规范化畸变括号、非 ASCII 数字及西里尔/希腊近似字母变体（例如 [в2]、[В4]、[B4]、[ν1]、[v3>、[vn4]、［ｖ１］、【v2】、[R/v3] 等）
     def _repair_bracket_token(m: re.Match) -> str:
-        num = m.group(1)
+        num = _normalize_placeholder_digits(m.group(1))
         target_token = f"[v{num}]"
         target_token_brace = f"{{{{v{num}}}}}"
         if target_token in src_tokens:
@@ -483,7 +498,7 @@ def sanitize_placeholders(source_text: str, candidate_text: str) -> tuple[str, l
         return m.group(0)
 
     res = re.sub(
-        r"(?<!\{)[\[\{【（\(][A-Za-z0-9_/\-\.,\s]*v\s*(\d+)[A-Za-z0-9_/\-\.,\s]*[\]\}】）\)](?!\})",
+        r"(?<!\{)[\[\{【（\(「『［][A-Za-z0-9_/\-\.,\s]*[vｖвbν][A-Za-z\s]{0,2}([0-9０-９٠-٩۰-۹]+)[A-Za-z0-9_/\-\.,\s]*[\]\}】）\)」』］>》](?!\})",
         _repair_bracket_token,
         candidate_text,
         flags=re.IGNORECASE,
@@ -779,8 +794,15 @@ class HunyuanLocalTranslator(BaseTranslator):
         if url_mapping:
             has_structural_tokens = True
 
-        # 1. 分级背景注入：短标题仅注入轻量 Title 消歧背景（防止模型误输出背景里的长摘要），长段落注入完整背景
-        active_bg = self.title_background_text if self._is_short_heading(text) else self.background_text
+        # 1. 分级背景注入：
+        #    - 参考文献列表绝不注入论文摘要背景（防止长文献块注意力漂移重译摘要）；
+        #    - 短标题仅注入轻量 Title 消歧背景；长正文段落注入完整背景
+        if self._is_reference_block(text):
+            active_bg = None
+        elif self._is_short_heading(text):
+            active_bg = self.title_background_text
+        else:
+            active_bg = self.background_text
         if has_structural_tokens:
             self.stats["structural_protected_calls"] += 1
             if active_bg:
@@ -826,7 +848,9 @@ class HunyuanLocalTranslator(BaseTranslator):
             candidate = raw_output.strip()
             finish_reason = res["choices"][0].get("finish_reason")
             candidate = clean_translated_candidate(candidate)
-            candidate = restore_inline_urls(candidate, url_mapping)
+            if "**" not in text:
+                candidate = candidate.replace("**", "")
+            candidate = restore_inline_urls(candidate, url_mapping, source_text=text)
             candidate = align_reference_newlines(text, candidate)
             candidate, stripped_tokens = sanitize_placeholders(text, candidate)
             if stripped_tokens:
@@ -841,11 +865,13 @@ class HunyuanLocalTranslator(BaseTranslator):
             candidate = ""
             finish_reason = "error"
 
-        # 2. 校验占位符完整性、截断与异常膨胀/漏译
+        # 2. 校验占位符完整性、截断、异常膨胀、年份保真、跨脚本乱码与漏译
         val = PlaceholderValidator.validate(text, candidate, finish_reason=finish_reason)
         expanded = self._suspicious_expansion(text, candidate)
+        year_mutated = self._has_year_hallucination(text, candidate)
+        script_glitch = self._has_foreign_script_glitch(text, candidate, self.lang_out)
         suspected = self._suspect_translation(text, candidate, effective_lang_in=effective_lang_in)
-        is_ok = val.is_valid and not expanded and not suspected
+        is_ok = val.is_valid and not expanded and not year_mutated and not script_glitch and not suspected
 
         if is_ok:
             self.stats["success_calls"] += 1
@@ -857,7 +883,11 @@ class HunyuanLocalTranslator(BaseTranslator):
         if not val.is_valid:
             fail_reason = val.reason
         elif expanded:
-            fail_reason = "短文本译文异常膨胀，疑似背景泄漏"
+            fail_reason = "译文异常膨胀，疑似背景泄漏"
+        elif year_mutated:
+            fail_reason = "四位年份数字被模型篡改"
+        elif script_glitch:
+            fail_reason = "译文混入非目标语系乱码字符"
         else:
             fail_reason = "正文疑似漏译或目标语言不符"
         # 实时推送失败状态至前端监视流
@@ -898,7 +928,9 @@ class HunyuanLocalTranslator(BaseTranslator):
                 retry_raw = retry_res["choices"][0]["message"]["content"]
                 candidate = retry_raw.strip()
                 candidate = clean_translated_candidate(candidate)
-                candidate = restore_inline_urls(candidate, url_mapping)
+                if "**" not in text:
+                    candidate = candidate.replace("**", "")
+                candidate = restore_inline_urls(candidate, url_mapping, source_text=text)
                 candidate = align_reference_newlines(text, candidate)
                 candidate, stripped_retry = sanitize_placeholders(text, candidate)
                 if stripped_retry:
@@ -910,6 +942,8 @@ class HunyuanLocalTranslator(BaseTranslator):
                 retry_is_ok = (
                     val.is_valid
                     and not self._suspicious_expansion(text, candidate)
+                    and not self._has_year_hallucination(text, candidate)
+                    and not self._has_foreign_script_glitch(text, candidate, self.lang_out)
                     and not self._suspect_translation(text, candidate, effective_lang_in=effective_lang_in)
                 )
 
@@ -949,6 +983,8 @@ class HunyuanLocalTranslator(BaseTranslator):
             has_valid_content = bool(candidate.strip() and candidate.strip().casefold() != text.strip().casefold())
 
         if has_valid_content:
+            # 若存在明确单一年份被篡改（如页眉 (2026) -> (2024)），自动还原原文年份；并剥离非目标语系乱码
+            candidate = self._repair_year_if_unambiguous(text, candidate)
             # 如果存在缺失的占位符，采用语义锚点智能回填，确保文献上标定位准确
             if val.missing_tokens:
                 logger.warning(
@@ -960,7 +996,8 @@ class HunyuanLocalTranslator(BaseTranslator):
                 logger.warning("占位符或格式存在微小瑕疵 (%s)，充分信任大模型并保全译文: %r", val.reason, text[:60])
             candidate = align_reference_newlines(text, candidate)
             self._notify_block(text, candidate, "fallback_repaired", reason=f"重试达上限({self.max_retries}次)，智能锚点保全: {val.reason}")
-            self._store_cache(text, candidate)
+            if not self._has_year_hallucination(text, candidate):
+                self._store_cache(text, candidate)
             return candidate
 
         # 若候选译文无有效目标语言内容（模型未翻译或返回空白），安全回退原文，绝不抛出致命异常
@@ -969,14 +1006,77 @@ class HunyuanLocalTranslator(BaseTranslator):
         return text
 
     @staticmethod
+    def _is_reference_block(text: str) -> bool:
+        """检测参考文献/书目列表块，避免注入摘要背景诱发大模型跨页重译摘要。"""
+        if not text or len(text) < 120:
+            return False
+        markers = re.findall(r"(?:\[v\d+\]|\[\d+\])", text)
+        if len(markers) < 2:
+            return False
+        has_year = bool(re.search(r"(?<!\d)(?:19\d\d|20\d\d)(?!\d)", text))
+        has_pub_meta = bool(
+            re.search(
+                r"(?:press|report|journal|vol\b|no\b|pp\b|university|publisher|proceedings|trans\b|struct\b|phys\b|chem\b|eng\b|doi\b|et al\b)",
+                text,
+                re.IGNORECASE,
+            )
+        )
+        return has_year and has_pub_meta
+
+    @staticmethod
+    def _has_year_hallucination(source: str, candidate: str) -> bool:
+        """检测四位年份（19xx/20xx）是否被大模型篡改（如页眉 2026 -> 2024）。"""
+        if not source or not candidate:
+            return False
+        src_years = set(re.findall(r"(?<!\d)(?:19\d\d|20\d\d)(?!\d)", source))
+        if not src_years:
+            return False
+        cand_years = set(re.findall(r"(?<!\d)(?:19\d\d|20\d\d)(?!\d)", candidate))
+        return bool(cand_years - src_years)
+
+    @staticmethod
+    def _repair_year_if_unambiguous(source: str, candidate: str) -> str:
+        """若原文与译文各自仅含单个不同四位年份，自动还原为原文年份。"""
+        if not source or not candidate:
+            return candidate
+        src_years = list(dict.fromkeys(re.findall(r"(?<!\d)(?:19\d\d|20\d\d)(?!\d)", source)))
+        cand_years = list(dict.fromkeys(re.findall(r"(?<!\d)(?:19\d\d|20\d\d)(?!\d)", candidate)))
+        if len(src_years) == 1 and len(cand_years) == 1 and src_years[0] != cand_years[0]:
+            return re.sub(rf"(?<!\d){re.escape(cand_years[0])}(?!\d)", src_years[0], candidate)
+        return candidate
+
+    @staticmethod
+    def _has_foreign_script_glitch(source: str, candidate: str, lang_out: str) -> bool:
+        """检测非目标语系文字异常混入（如俄/英/中译文中出现阿拉伯文 token glitch `ىلع`）。"""
+        if not candidate:
+            return False
+        lang = (lang_out or "").strip().lower()
+        prose = PLACEHOLDER_PATTERN.sub("", candidate)
+        src_prose = PLACEHOLDER_PATTERN.sub("", source or "")
+        checks = [
+            (r"[\u0600-\u06ff]", {"ar", "fa", "ur", "ug", "kk"}),
+            (r"[\u0590-\u05ff]", {"he"}),
+            (r"[\u0900-\u097f]", {"hi", "mr"}),
+            (r"[\u0e00-\u0e7f]", {"th"}),
+            (r"[\uac00-\ud7af]", {"ko"}),
+            (r"[\u3040-\u30ff]", {"ja"}),
+        ]
+        for pat, allowed_langs in checks:
+            if lang not in allowed_langs and re.search(pat, prose) and not re.search(pat, src_prose):
+                return True
+        return False
+
+    @staticmethod
     def _suspicious_expansion(source: str, candidate: str) -> bool:
-        """拦截短标题/短词在携带背景时异常膨胀出几十倍篇幅的泄漏情况。"""
+        """拦截短标题膨胀及长段落中突发注入摘要/背景的异常扩写。"""
         src_prose = re.sub(r"\s+", " ", PLACEHOLDER_PATTERN.sub("", source or "")).strip()
         cand_prose = re.sub(r"\s+", " ", PLACEHOLDER_PATTERN.sub("", candidate or "")).strip()
         if not src_prose or not cand_prose:
             return False
         if len(src_prose.split()) <= 4 and len(src_prose) <= 40:
             return len(cand_prose) > max(60, len(src_prose) * 6)
+        if len(src_prose) > 80 and len(cand_prose) > max(400, len(src_prose) * 2.8):
+            return True
         return False
 
     def _suspect_translation(self, source: str, candidate: str, effective_lang_in: Optional[str] = None) -> bool:
