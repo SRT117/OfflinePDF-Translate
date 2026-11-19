@@ -68,7 +68,7 @@ The project uses BabelDOC and DocLayout-YOLO for PDF parsing, layout recognition
 
 ### Output & Quality Boundaries
 
-- `[name].翻译.pdf` (translated) and `[name].对照.pdf` (bilingual) are generated in the source directory and marked successful only when both PDFs pass validation. If the source directory is not writable, outputs are automatically saved to `Translated PDFs` under the user data directory.
+- `[name].translated.pdf` (translated) and `[name].bilingual.pdf` (bilingual) are generated in the source directory and marked successful only when both PDFs pass validation. If the source directory is not writable, outputs are automatically saved to `Translated PDFs` under the user data directory.
 - Successful re-translations atomically replace existing files of the same name via temporary files in the same directory; failed runs preserve the original outputs.
 - Missing placeholders, truncated outputs, empty translations, or suspected source-text echoes automatically trigger retries. If issues persist after retries, the program attempts to repair placeholders or falls back to the source text to ensure layout delivery. Therefore, a "Completed" status does not guarantee every paragraph is flawless—important literature should be verified against the live stream and translated text.
 - **Text-extractable PDFs only**: Bitmap scans have no built-in OCR engine and will be explicitly rejected with a prompt to run OCR first.
@@ -134,7 +134,7 @@ This is a standard SmartScreen prompt triggered because an individual open-sourc
 This project relies on embedded extractable text and layout objects in PDFs. Pure image scans lack a text layer and must be converted to dual-layer PDFs with an OCR tool before importing.
 
 ### Where are the translated files saved?
-By default, they are written directly to the original PDF's directory (`[name].翻译.pdf` and `[name].对照.pdf`). If that directory is write-protected, they are automatically saved to `%LOCALAPPDATA%\OfflinePDF Translate\Translated PDFs`.
+By default, they are written directly to the original PDF's directory (`[name].translated.pdf` and `[name].bilingual.pdf`). If that directory is write-protected, they are automatically saved to `%LOCALAPPDATA%\OfflinePDF Translate\Translated PDFs`.
 
 ### How do I troubleshoot startup failures or translation errors?
 Check the runtime logs and `llama-server.log` under `%LOCALAPPDATA%\OfflinePDF Translate\logs`. When filing an issue, please attach sanitized error logs and your system configuration, and never upload private source papers.

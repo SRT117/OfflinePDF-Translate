@@ -25,7 +25,7 @@ def validate_pdf(path):
 def publish_pair(result, source_pdf):
     source_pdf = Path(source_pdf)
     items = []
-    for key, suffix in [('dual_pdf_path', '对照'), ('mono_pdf_path', '翻译')]:
+    for key, suffix in [('dual_pdf_path', 'bilingual'), ('mono_pdf_path', 'translated')]:
         value = result.get(key)
         if not value:
             continue

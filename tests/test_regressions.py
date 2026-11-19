@@ -464,7 +464,7 @@ class DeliveryTests(unittest.TestCase):
             root = Path(td)
             with self.assertRaises(RuntimeError):
                 publish_pair({}, root / 'input.pdf')
-            self.assertFalse((root / 'input.翻译.pdf').exists())
+            self.assertFalse((root / 'input.translated.pdf').exists())
 
     def test_single_pdf_is_not_published(self):
         with tempfile.TemporaryDirectory() as td:
@@ -472,7 +472,7 @@ class DeliveryTests(unittest.TestCase):
             make_pdf(root / 'mono.pdf')
             with self.assertRaises(RuntimeError):
                 publish_pair({'mono_pdf_path': root / 'mono.pdf'}, root / 'input.pdf')
-            self.assertFalse((root / 'input.翻译.pdf').exists())
+            self.assertFalse((root / 'input.translated.pdf').exists())
 
     def test_corrupt_pdf_rejected(self):
         with tempfile.TemporaryDirectory() as td:
@@ -487,8 +487,8 @@ class DeliveryTests(unittest.TestCase):
             for name in ['mono', 'dual']:
                 make_pdf(root / f'{name}.pdf')
             result = {f'{name}_pdf_path': root / f'{name}.pdf' for name in ['mono', 'dual']}
-            dest_dual = root / 'input.对照.pdf'
-            dest_mono = root / 'input.翻译.pdf'
+            dest_dual = root / 'input.bilingual.pdf'
+            dest_mono = root / 'input.translated.pdf'
             dest_dual.write_bytes(b'previous dual')
             dest_mono.write_bytes(b'previous mono')
             original_replace = os.replace

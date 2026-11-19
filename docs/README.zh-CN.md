@@ -69,7 +69,7 @@ OfflinePDF Translate是一个专注于本地离线翻译PDF文献的项目。用
 
 ### 输出与质量边界
 
-- 源目录会生成 `[原名].翻译.pdf` 和 `[原名].对照.pdf`，仅当两份PDF均校验有效时才标记成功；若源目录不可写，则自动保存至用户数据目录下的 `Translated PDFs`。
+- 源目录会生成 `[原名].translated.pdf`（译文）和 `[原名].bilingual.pdf`（双语对照），仅当两份PDF均校验有效时才标记成功；若源目录不可写，则自动保存至用户数据目录下的 `Translated PDFs`。
 - 重新翻译成功时通过同目录临时文件原子替换同名输出，失败时保留原有输出。
 - 占位符缺失、输出截断、空译文或疑似原文回传会自动触发重试；若重试后仍有问题，程序会尽量修复占位符或保留原文以确保排版交付，因此“完成”状态不代表每段译文都完美无误，重要文献建议对照实时流与译文核对。
 - **仅支持含可提取文本的PDF**：位图扫描件没有内置OCR引擎，会被明确拦截并提示先做OCR。
@@ -135,7 +135,7 @@ OfflinePDF Translate是一个专注于本地离线翻译PDF文献的项目。用
 本项目依赖PDF内嵌的可提取文本与版面对象。纯图片扫描件没有文字层，需先使用OCR工具转为双层PDF后再导入翻译。
 
 ### 翻译后的文件保存在哪里？
-默认直接输出到原PDF所在目录（`[原名].翻译.pdf` 与 `[原名].对照.pdf`）；若原目录受权限保护不可写，则自动存入 `%LOCALAPPDATA%\OfflinePDF Translate\Translated PDFs`。
+默认直接输出到原PDF所在目录（`[原名].translated.pdf` 与 `[原名].bilingual.pdf`）；若原目录受权限保护不可写，则自动存入 `%LOCALAPPDATA%\OfflinePDF Translate\Translated PDFs`。
 
 ### 遇到启动失败或翻译报错如何排查？
 可以查看 `%LOCALAPPDATA%\OfflinePDF Translate\logs` 下的运行日志与 `llama-server.log`。提交Issue时请附上脱敏后的错误日志与系统配置，切勿上传含隐私内容的论文原文。
