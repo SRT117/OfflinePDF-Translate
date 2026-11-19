@@ -783,7 +783,7 @@ class DailyTranslatePanel(QWidget):
 
         self.main_splitter.addWidget(self.panes_splitter)
         self.main_splitter.addWidget(self.side_drawer)
-        self.main_splitter.setSizes([820, 340])
+        self.main_splitter.setSizes([720, 360])
         root.addWidget(self.main_splitter, stretch=1)
 
         # -------------------------------------------------------------------
@@ -814,7 +814,7 @@ class DailyTranslatePanel(QWidget):
     def _build_side_drawer(self) -> QFrame:
         drawer = QFrame()
         drawer.setObjectName("DailySideDrawer")
-        drawer.setMinimumWidth(300)
+        drawer.setMinimumWidth(348)
         drawer.setStyleSheet(f"""
             #DailySideDrawer {{
                 background-color: {THEME["surface"]};
