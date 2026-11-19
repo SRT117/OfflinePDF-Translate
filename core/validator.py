@@ -17,6 +17,12 @@ PLACEHOLDER_PATTERN = re.compile(
 )
 STYLE_OPEN_PATTERN = re.compile(r"<style\s+id='(\d+)'>", re.IGNORECASE)
 STYLE_CLOSE_PATTERN = re.compile(r"<\/style>", re.IGNORECASE)
+# 检测未被还原的 URL 占位符 [u1] 或被大模型错写为西里尔/近似字母/畸变括号的残留占位符 ([в2]、[B4]、[у2]、[v3>、[vn4])
+LEAKED_VARIANT_TOKEN_PATTERN = re.compile(
+    r"[\[\{【（]\s*(?:u|у|в|b|v[a-z]{1,2})\s*\d+\s*[\]\}】）>]"
+    r"|[\[\{【（]\s*v\s*\d+\s*[>》]",
+    re.IGNORECASE,
+)
 
 
 def normalize_token(raw_match: str) -> str:
@@ -135,6 +141,29 @@ class PlaceholderValidator:
                     break
         if depth != 0:
             return ValidationResult(False, "代码标签嵌套顺序无效", src_tokens, tgt_tokens, [], [])
+
+        # 5. 残留变体/URL 占位符校验（例如未还原的 [u2] 或俄语错写 [в2]/[B4]）
+        src_variant_counts = Counter(
+            normalize_token(m.group(0)) for m in LEAKED_VARIANT_TOKEN_PATTERN.finditer(source_text or "")
+        )
+        tgt_variant_counts = Counter(
+            normalize_token(m.group(0)) for m in LEAKED_VARIANT_TOKEN_PATTERN.finditer(target_text or "")
+        )
+        leaked_variants = [
+            tok
+            for tok, cnt in tgt_variant_counts.items()
+            if cnt > src_variant_counts.get(tok, 0)
+        ]
+        if leaked_variants:
+            return ValidationResult(
+                is_valid=False,
+                reason=f"存在未还原或畸变的占位符残留: {leaked_variants}",
+                source_tokens=src_tokens,
+                target_tokens=tgt_tokens,
+                missing_tokens=[],
+                extra_tokens=leaked_variants,
+            )
+
         return ValidationResult(
             is_valid=True,
             reason="校验通过",

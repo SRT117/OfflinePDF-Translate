@@ -406,8 +406,11 @@ def _should_justify_paragraph(
     lines: list[_LayoutLine],
     font_size: float,
     scale: float,
+    is_chinese_or_cjk_unspaced: bool = False,
 ) -> bool:
-    """判断段落是否适合执行两端对齐（保护单行、标题、页眉页脚、表格、极窄框与竖排）。"""
+    """判断段落是否适合执行两端对齐（中文等非空格分词文字保持原始自然排版，保护标题/表格/公式等）。"""
+    if is_chinese_or_cjk_unspaced:
+        return False
     if len(lines) < 2:
         return False
     if getattr(paragraph, "vertical", False):
@@ -466,8 +469,11 @@ def _justify_line(
     visible_count = sum(1 for it in items if not it.is_space)
     cjk_count = sum(1 for it in items if it.is_cjk)
     cjk_dominant = is_cjk_lang and visible_count > 0 and (cjk_count / visible_count) >= 0.45
+    if cjk_dominant or not space_slots:
+        # 中文/CJK 主导行与无词间空格行保持原始自然字距，不做强制拉伸
+        return
 
-    if space_slots and not cjk_dominant:
+    if space_slots:
         # 非中文/空格分词语言：如果行填充率过低（如被超大公式挤出半行空白），不强拉制造“河流”
         if fill_ratio < 0.62:
             return
@@ -514,33 +520,6 @@ def _justify_line(
             if idx in space_set:
                 offset += extra_per_space
         return
-
-    # CJK 主导行（或无空格长行）：仅在高填充率且极小微调范围内做柔和字距均摊
-    if cjk_dominant and fill_ratio >= 0.80:
-        cjk_gaps: list[int] = []
-        for idx in range(1, len(items)):
-            prev_it = items[idx - 1]
-            curr_it = items[idx]
-            # 绝不拆开嵌入的英文/俄文单词内部，也不在标点与紧邻字符间硬塞缝隙
-            if prev_it.unit.is_cannot_appear_in_line_end_punctuation:
-                continue
-            if curr_it.unit.is_hung_punctuation:
-                continue
-            if prev_it.is_space or curr_it.is_space or prev_it.is_cjk or curr_it.is_cjk:
-                cjk_gaps.append(idx)
-
-        if not cjk_gaps:
-            return
-        max_cjk_extra = scaled_fs * 0.12
-        if slack > len(cjk_gaps) * max_cjk_extra:
-            return
-        extra_per_gap = slack / len(cjk_gaps)
-        gap_set = set(cjk_gaps)
-        offset = 0.0
-        for idx, item in enumerate(items):
-            if idx in gap_set:
-                offset += extra_per_gap
-            item.x += offset
 
 
 def _make_hyphen_unit(typesetting_self, anchor_unit, TypesettingUnit):
@@ -949,8 +928,16 @@ def _patched_layout_typesetting_units(
     if lines:
         lines[-1].ended_by_hard_break = True
 
-    # 4. 两端对齐调整阶段（仅调整每行内水平坐标 x，绝不改变行数与溢出判定）
-    if _should_justify_paragraph(paragraph, box, lines, font_size, scale):
+    # 4. 两端对齐调整阶段（仅调整非中文等空格分词语言的水平坐标 x，中文保持原始自然排版）
+    is_chinese_lang = any(k in lang_code_upper for k in ("ZH", "CN", "HK", "TW", "YUE"))
+    if _should_justify_paragraph(
+        paragraph,
+        box,
+        lines,
+        font_size,
+        scale,
+        is_chinese_or_cjk_unspaced=is_chinese_lang,
+    ):
         for line in lines:
             _justify_line(
                 line=line,
