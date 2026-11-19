@@ -36,7 +36,7 @@ When modifying installation, packaging, user data storage, or registry persisten
 
 1. **Remotes & network routing:**
    - Primary open-source repository: **GitHub** (`origin`, `SRT117/OfflinePDF-Translate`).
-   - Domestic mirror & binary download entry: **GitCode** (`gitcode`, `SRT117/OfflinePDF-Translate`). Push/upload to GitCode over a direct connection bypassing local proxy/VPN tools so large transfers do not consume proxy subscription quota.
+   - Domestic mirror & binary download entry: **GitCode** (`gitcode`, `SRT117/OfflinePDF-Translate`). Push/upload to GitCode over a direct connection bypassing local proxy/VPN tools so large transfers do not consume proxy subscription quota. Never push multi-gigabyte transfers directly from a residential network to a cloud relay server's public IP (which risks triggering IP blocks).
 2. **Pre-release checks:**
    - Run `.\runtime\python\python.exe -m unittest discover -s tests`, `.\runtime\python\python.exe gui.py --check-runtime`, and `.\runtime\python\python.exe scripts/prepare_offline_assets.py`.
    - Push `main` and the annotated tag (`vX.Y.Z`) to both `origin` and `gitcode`, and confirm `.github/workflows/tests.yml` passes across `windows-latest`, `ubuntu-latest`, and `macos-latest`.
@@ -44,5 +44,7 @@ When modifying installation, packaging, user data storage, or registry persisten
    - Build the Windows installer on Windows x64 (`.\scripts\build_installer.ps1 -Version "<X.Y.Z>"`) and generate `OfflinePDF-Translate-Setup.exe.sha256`.
    - Update `THIRD_PARTY_NOTICES.md` whenever Python dependencies, `llama.cpp`, fonts, or models change.
 4. **Release publishing & cleanup:**
-   - Upload `OfflinePDF-Translate-Setup.exe` and `.sha256` to both GitCode Releases and GitHub Releases (if the installer exceeds 2 GiB, use `.\scripts\build_installer.ps1 -Split`; if local proxy instability interrupts large uploads to GitHub, relay the already-uploaded GitCode binary via an overseas host after verifying its exact SHA-256).
+   - Ensure GitCode releases set an active public status (such as `release_status: "latest"`) so anonymous visitors see the release and assets rather than an empty list.
+   - Upload `OfflinePDF-Translate-Setup.exe` and `.sha256` to both GitCode Releases and GitHub Releases (if the installer exceeds 2 GiB, use `.\scripts\build_installer.ps1 -Split`). Note that GitCode v5 API uploads (`releases.upload` / `get_upload_url`) can fail `obs_callback` (`203` / `400 release update failed`), leaving assets without a `size` field and returning `404 NOT_PATH` on download; if that happens, upload the assets through the GitCode web UI over a direct domestic connection instead.
+   - After publishing, always verify both GitCode and GitHub asset links via unauthenticated HTTP `GET` (expecting `302` redirects to CDN/asset storage) and confirm identical byte sizes and SHA-256 digests (`OfflinePDF-Translate-Setup.exe.sha256`).
    - Remove obsolete test tags/releases, temporary files, and superseded local builds in `dist/` so storage stays clean. Keep the GitCode Releases mirror link documented in `docs/README.zh-CN.md`.
